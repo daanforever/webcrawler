@@ -10,8 +10,11 @@ require './lib/web-crawler.rb'
 #  └─ dfasd
 
 crawler = WebCrawler.new();
+crawler2 = WebCrawler.new();
 
 crawler.init('http://dron.me') unless crawler.session();
 crawler.step();
+crawler2.init('http://yandex.ru') unless crawler.session();
+crawler2.step();
 crawler.dump();
 

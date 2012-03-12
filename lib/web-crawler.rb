@@ -20,14 +20,21 @@ class WebCrawler
     end
 
     def get(url)
-        r = HTTParty.get(url).body;
-        r = Nokogiri.parse(r);
-        hash = Hash.new
-        r.search('a').each do |a|
-            url = a['href'].match(/http:\/\/([^\/]+)/)[1] 
-            hash[url] = 1
+        begin
+            r = HTTParty.get(url).body;
+            r = Nokogiri.parse(r);
+            @hash = Hash.new
+            r.search('a').each do |a|
+                if (nil != a['href']) then
+                    if (nil != newurl = a['href'].match(/http:\/\/([^\/]+)/)) then
+                        @hash[newurl[1]] = 1
+                    end
+                end
+            end
+        rescue => detail
+            puts "Can't fetch url: " + url + ":\n" + detail.message
         end
-        hash
+        @hash
     end
 
     def dump
@@ -37,6 +44,7 @@ class WebCrawler
     end
 
     def step
+        p @hash
     end
 end
 
