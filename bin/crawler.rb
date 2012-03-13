@@ -14,8 +14,8 @@ crawler2 = WebCrawler.new();
 
 puts crawler.version()
 crawler.init('http://dron.me') unless crawler.session();
-while(crawler.queue>0) do
+while(crawler.queue > 0) do
 crawler.step();
 end
-crawler.dump();
+#crawler.dump();
 
