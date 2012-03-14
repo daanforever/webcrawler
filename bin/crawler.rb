@@ -9,13 +9,16 @@ require './lib/web-crawler.rb'
 #  ├─ sdfsd
 #  └─ dfasd
 
-crawler = WebCrawler.new();
-crawler2 = WebCrawler.new();
-
-puts crawler.version()
-crawler.init('http://dron.me') unless crawler.session();
-while(crawler.queue > 0) do
-crawler.step();
+threads = []
+WebCrawler.new.init('http://dron.me');
+1.upto 3 do
+    threads << Thread.new do
+        crawler = WebCrawler.new();
+        while(crawler.queue > 0) do
+            crawler.step();
+        end
+    end
 end
+threads.each { |aThread|  aThread.join }
 #crawler.dump();
 
