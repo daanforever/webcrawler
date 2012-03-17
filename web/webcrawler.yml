@@ -1,0 +1,18 @@
+--- 
+pid: /var/run/thin.pid
+group: www-data
+address: 127.0.0.1
+timeout: 30
+port: 3003
+log: /var/log/thin/thin.log
+max_conns: 1024
+require: []
+
+trace: true
+max_persistent_conns: 512
+environment: development
+debug: true
+user: www-data
+servers: 2
+daemonize: true
+chdir: /opt/projects/webCrawler/web
