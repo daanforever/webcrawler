@@ -50,11 +50,14 @@ class WebCrawler
 
     def extractUrl(body)
         $log.debug('extractUrl') {"extracting url"}
+        seen = Array.new
         begin
             body.search('a').each do |a|
                 if ((nil != a['href']) and (nil != url = a['href'].match(/http:\/\/(?:[\w\d\-\.]{1,64}\.)?([\w\d\-]{1,64}\.\w{2,4})/))) then
-                    @url.add url[1]  if ! @url.seen? url[1]
-                    #puts "Not seen #{url[1]}"  if ! @url.seen? url[1]
+                    if (! seen.include?(url[1])) then
+                        @url.add url[1]
+                        seen.push url[1]
+                    end
                 end
             end
         rescue => detail
@@ -70,13 +73,10 @@ class WebCrawler
     end
 
     def step
-        #p @url
         $log.debug('step') {"run"}
         if (nil != url = @url.next) then
-            #puts "total=#{@url.total} unseen=#{@url.unseen} current=#{url}"
-            #puts "#{url}"
-            $log.info('step') {"#{url}"}
-            get("http://#{url}");
+            $log.info('step') {"#{url['url']}"}
+            get("http://#{url['url']}");
         end
     end
 
@@ -179,13 +179,14 @@ class WebCrawler::URL
         $log.debug('next') {"run"}
         begin
             @client.query("LOCK TABLES `url` WRITE")
-            query = @client.query("SELECT `id`, `url` FROM `url` WHERE `updated` IS NULL LIMIT 1")
+            # Next must return "WHERE `updated` IS NULL" and "WHERE `updated` < NOW()-1DAY"
+            query = @client.query("SELECT `id`, `url` FROM `url` WHERE `updated` IS NULL OR `updated` < DATE_SUB(NOW(), INTERVAL 7 DAY) LIMIT 1")
             url = ''
             query.each do |row|
                 url = row
                 @client.query("UPDATE `url` SET `updated` = CURRENT_TIMESTAMP WHERE `id` = '#{url['id']}'")
                 @client.query("UNLOCK TABLES")
-                $log.debug('url.next') {"next url: #{url}"}
+                $log.debug('url.next') {"next url: #{url['url']}"}
             end
             url
         rescue => detail
@@ -195,8 +196,8 @@ class WebCrawler::URL
 
     def seen?(url)
         $log.debug('url.seen?') {"ask: #{url}"}
-        result = count(url) 
-        dresult = result == 0 ? 'unseen' : 'seen'
+        result = get_by_url(url) 
+        dresult = result.count == 0 ? 'unseen' : 'seen'
         $log.debug('url.seen?') {"answer: #{url} #{dresult}"}
         result == 0 ? false : true
     end

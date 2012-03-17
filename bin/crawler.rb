@@ -11,7 +11,7 @@ require './lib/web-crawler.rb'
 
 threads = []
 WebCrawler.new.init('http://dron.me');
-1.upto 3 do
+1.upto 20 do
     threads << Thread.new do
         crawler = WebCrawler.new();
         while(crawler.queue > 0) do
