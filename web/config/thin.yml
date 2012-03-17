@@ -4,6 +4,7 @@ group: www-data
 address: 127.0.0.1
 timeout: 30
 port: 3003
+adapter: rails
 log: /var/log/thin/thin.log
 max_conns: 1024
 require: []
@@ -15,4 +16,4 @@ debug: true
 user: www-data
 servers: 2
 daemonize: true
-chdir: /opt/projects/webCrawler/web
+chdir: /opt/projects/webCrawler/web/config
