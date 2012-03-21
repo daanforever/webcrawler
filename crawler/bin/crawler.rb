@@ -10,7 +10,7 @@ require './lib/web-crawler.rb'
 #  └─ dfasd
 
 threads = []
-WebCrawler.new.init('http://dron.me');
+WebCrawler.new.init('dron.me');
 1.upto 20 do
     threads << Thread.new do
         crawler = WebCrawler.new();

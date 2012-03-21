@@ -31,7 +31,11 @@ class WebCrawler
     def get(url)
         $log.debug('get') {"request to get '#{url}'"}
         begin
-            body = HTTParty.get(url).body;
+            begin
+                body = HTTParty.get("http://#{url}").body
+            rescue
+                body = HTTParty.get("http://www.#{url}").body
+            end
             parse(body)
         rescue => detail
             $log.error('get') {"Can't fetch url: #{url}: #{detail.message}"}
@@ -74,9 +78,9 @@ class WebCrawler
 
     def step
         $log.debug('step') {"run"}
-        if (nil != url = @url.next) then
+        if (nil != url = @url.next_url) then
             $log.info('step') {"#{url['url']}"}
-            get("http://#{url['url']}");
+            get(url['url']);
         end
     end
 
@@ -94,7 +98,7 @@ class WebCrawler::URL
         dbport = 3306
         dbuser = 'webcrawler'
         dbpass = 'RiNChdOuD48On35S'
-        dbbase = 'webcrawler'
+        dbbase = 'webcrawler_development'
 
         begin
             @client = Mysql2::Client.new(:host => dbhost, :port => dbport, :username => dbuser, :password => dbpass, :database => dbbase)
@@ -108,7 +112,7 @@ class WebCrawler::URL
         $log.debug('url.add') {"#{url}"}
         begin
             #puts "add: #{url}"
-            @client.query("INSERT IGNORE INTO `url` SET `url`='#{url}'")
+            @client.query("INSERT IGNORE INTO `urls` SET `url`='#{url}', `created_at`=NOW()")
         rescue => detail
             $log.error('url.add') {"Error on insert to mysql: #{detail.message}"}
         end
@@ -121,37 +125,17 @@ class WebCrawler::URL
         $log.debug('url.get_by_url') {"run"}
         begin
             url = @client.escape(url);
-            results = @client.query("SELECT `id` FROM `url` WHERE `url` = '#{url}'");
+            results = @client.query("SELECT `id` FROM `urls` WHERE `url` = '#{url}'");
             results
         rescue => detail
             $log.error('url.get_by_url') {"Error on query to mysql: #{detail.message}"}
         end
     end
 
-    def unseen
-        $log.debug('url.unseen') {"run"}
-        begin
-            query = @client.query("SELECT `id` FROM `url` WHERE `updated` IS NULL LIMIT 1");
-            result = 0;
-            query.each do |row|
-                result = row["id"]
-            end
-            $log.debug('url.unseen') {"unseen: #{result}"}
-            result
-        
-            #if (! row.nil?) then
-            #    puts "unseen: #{row[1]}"
-            #    row[1].nil? ? 0 : row[1]
-            #end
-        rescue => detail
-            $log.error('url.unseen') {"Error on query to mysql: #{detail.message}"}
-        end
-    end
-
     def total
         $log.debug('url.total') {"run"}
         begin
-            query = @client.query("SELECT count(`id`) FROM `url`");
+            query = @client.query("SELECT count(`id`) FROM `urls`");
             query.each do |row|
                 result = row["id"]
             end
@@ -175,24 +159,41 @@ class WebCrawler::URL
         result.count
     end
 
-    def next
-        $log.debug('next') {"run"}
+    def next_url(unseen=0)
+        $log.debug('next_url') {"run"}
         begin
-            @client.query("LOCK TABLES `url` WRITE")
+            @client.query("LOCK TABLES `urls` WRITE")
             # Next must return "WHERE `updated` IS NULL" and "WHERE `updated` < NOW()-1DAY"
-            query = @client.query("SELECT `id`, `url` FROM `url` WHERE `updated` IS NULL OR `updated` < DATE_SUB(NOW(), INTERVAL 7 DAY) LIMIT 1")
-            url = ''
+            query = @client.query("SELECT `id`, `url` FROM `urls` WHERE `updated_at` IS NULL OR `updated_at` < DATE_SUB(NOW(), INTERVAL 7 DAY) LIMIT 1")
+            if  query.each.empty? then
+                query = @client.query("SELECT `id`, `url` FROM `urls` ORDER BY `updated_at` limit 1")
+            end
+            url = nil
             query.each do |row|
                 url = row
-                @client.query("UPDATE `url` SET `updated` = CURRENT_TIMESTAMP WHERE `id` = '#{url['id']}'")
-                @client.query("UNLOCK TABLES")
-                $log.debug('url.next') {"next url: #{url['url']}"}
+                @client.query("UPDATE `urls` SET `updated_at` = CURRENT_TIMESTAMP WHERE `id` = '#{url['id']}'") unless unseen == 1
+                $log.debug('url.next_url') {"next url: #{url['url']}"}
             end
             url
         rescue => detail
-            $log.error('url.next') {"Error on query to mysql: #{detail.message}"}
+            $log.error('url.next_url') {"Error on query to mysql: #{detail.message}"}
+        ensure
+            @client.query("UNLOCK TABLES")
         end
     end
+
+    def unseen
+        $log.debug('url.unseen') {"run"}
+        begin
+            result = next_url(1).nil? ? 0 : 1
+            $log.debug('url.unseen') {"unseen: #{result}"}
+            result
+        
+        rescue => detail
+            $log.error('url.unseen') {"Error on query to next_url: #{detail.message}"}
+        end
+    end
+
 
     def seen?(url)
         $log.debug('url.seen?') {"ask: #{url}"}
